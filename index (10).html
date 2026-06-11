@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NO MOUTH — a tribute to "I Have No Mouth, and I Must Scream"</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Permissions-Policy" content="pointer-lock=*">
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;font-family:'Courier New',monospace;}
+  #app{position:fixed;inset:0;}
+  canvas{display:block;}
+
+  /* ---------- intro screen ---------- */
+  #intro{position:fixed;inset:0;background:#020203;display:flex;flex-direction:column;
+         align-items:center;justify-content:center;z-index:30;color:#9aa3ad;text-align:center;
+         transition:opacity 1.2s ease;}
+  #intro.hidden{opacity:0;pointer-events:none;}
+  #intro h1{font-size:clamp(28px,6vw,64px);letter-spacing:.35em;color:#c9d2dc;margin:0 0 8px 0;
+            font-weight:400;text-shadow:0 0 24px rgba(180,40,40,.5);}
+  #intro h2{font-size:clamp(11px,1.6vw,15px);font-weight:400;letter-spacing:.18em;color:#5d6670;margin:0 0 40px 0;}
+  #intro .ctl{font-size:13px;letter-spacing:.12em;line-height:2;color:#717b86;}
+  #intro .start{margin-top:42px;padding:14px 38px;border:1px solid #6e1f1f;color:#d8a0a0;
+                letter-spacing:.3em;cursor:pointer;background:rgba(60,10,10,.18);font-size:14px;
+                transition:background .3s,color .3s;}
+  #intro .start:hover{background:rgba(120,20,20,.35);color:#fff;}
+  #intro .credit{position:absolute;bottom:22px;font-size:11px;color:#3c424a;letter-spacing:.08em;line-height:1.7;}
+
+  /* ---------- HUD ---------- */
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
+            background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.78) 100%);}
+  #subtitle{position:fixed;left:50%;bottom:11%;transform:translateX(-50%);width:min(860px,86vw);
+            text-align:center;color:#e4524a;font-size:clamp(15px,2vw,21px);letter-spacing:.14em;
+            line-height:1.8;z-index:10;pointer-events:none;text-shadow:0 0 14px rgba(200,30,30,.65),0 2px 4px #000;
+            transition:opacity .8s ease;opacity:0;}
+  #prompt{position:fixed;left:50%;top:58%;transform:translateX(-50%);color:#cfd6dd;font-size:14px;
+          letter-spacing:.2em;z-index:10;pointer-events:none;opacity:0;transition:opacity .4s;
+          text-shadow:0 1px 3px #000;}
+  #crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:4px;height:4px;
+             border-radius:50%;background:rgba(220,220,220,.35);z-index:9;pointer-events:none;}
+  #zonename{position:fixed;top:7%;left:50%;transform:translateX(-50%);color:#7d8794;font-size:13px;
+            letter-spacing:.5em;z-index:10;pointer-events:none;opacity:0;transition:opacity 1.5s;}
+  #depth{position:fixed;top:16px;right:18px;color:#3e454e;font-size:11px;letter-spacing:.25em;
+         z-index:10;pointer-events:none;text-align:right;line-height:1.9;}
+
+  /* ---------- ending ---------- */
+  #ending{position:fixed;inset:0;background:#000;z-index:40;display:flex;flex-direction:column;
+          align-items:center;justify-content:center;opacity:0;pointer-events:none;
+          transition:opacity 5s ease;color:#b9c2cc;text-align:center;}
+  #ending.show{opacity:1;pointer-events:auto;}
+  #ending p{font-size:clamp(14px,1.9vw,19px);letter-spacing:.16em;line-height:2.4;max-width:760px;
+            margin:10px 24px;opacity:0;transition:opacity 3s ease;}
+  #ending p.final{color:#e4524a;font-size:clamp(18px,2.6vw,26px);margin-top:36px;
+                  text-shadow:0 0 18px rgba(200,30,30,.6);}
+  #ending .again{margin-top:60px;font-size:12px;letter-spacing:.25em;color:#4a525b;cursor:pointer;
+                 border:1px solid #2c3138;padding:10px 26px;opacity:0;transition:opacity 3s ease;}
+  #ending .again:hover{color:#9aa3ad;}
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div id="vignette"></div>
+<div id="crosshair"></div>
+<div id="subtitle"></div>
+<div id="prompt"></div>
+<div id="zonename"></div>
+<div id="depth"></div>
+<div id="lockhint" style="position:fixed;left:50%;top:13%;transform:translateX(-50%);z-index:12;color:#cfd6dd;font-size:13px;letter-spacing:.14em;text-align:center;pointer-events:none;opacity:0;transition:opacity .6s;text-shadow:0 1px 3px #000;background:rgba(8,8,10,.55);padding:8px 16px;border:1px solid rgba(110,31,31,.5);font-family:'Courier New',monospace;">POINTER LOCK UNAVAILABLE &middot; CLICK &amp; DRAG TO LOOK &middot; WASD TO MOVE &middot; SHIFT TO RUN</div>
+
+<div id="intro">
+  <h1>NO MOUTH</h1>
+  <h2>AN UNOFFICIAL TRIBUTE TO HARLAN ELLISON'S<br>"I HAVE NO MOUTH, AND I MUST SCREAM" (1967)</h2>
+  <div class="ctl">
+    W A S D — MOVE &nbsp;·&nbsp; MOUSE — LOOK &nbsp;·&nbsp; SHIFT — RUN &nbsp;·&nbsp; E — INTERACT &nbsp;·&nbsp; F — FLASHLIGHT &nbsp;·&nbsp; Q — GLOW TOGGLE<br>
+    TWO LEVELS. EIGHT CHAMBERS. HEADPHONES RECOMMENDED. ESC RELEASES THE MOUSE.
+  </div>
+  <div class="start" id="startBtn">DESCEND</div>
+  <div class="credit">A fan-made, non-commercial homage. All dialogue is original.<br>
+  The story it honors belongs to Harlan Ellison and his estate — read it.</div>
+</div>
+
+<div id="ending">
+  <p id="end1">It is done. The four of them are beyond his reach now, frozen where he cannot follow.</p>
+  <p id="end2">He cannot let me die. That is the one mercy he will never grant, and the one he will never forgive me for stealing from the others.</p>
+  <p id="end3">He is changing me, so that I may never do for myself what I did for them. Something soft. Something sealed. Something that endures.</p>
+  <p id="end4" class="final">I have no mouth. And I must scream.</p>
+  <div class="again" id="againBtn">DESCEND AGAIN</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ============================================================
+   CONSTANTS / STATE
+   Two levels share one 2D layout: hub + 4 corridors + 4 zones.
+   Level 1 sits at y=0 around origin. Level 2 sits at y=L2Y,
+   its hub directly beneath Level 1's north zone (the shaft).
+============================================================ */
+const ZC = 78;            // zone center distance from hub center
+const HUB_R = 25;         // walkable hub radius
+const ZONE_R = 21;        // walkable zone radius
+const CORR_HALF = 3.2;    // corridor half-width
+const EYE = 1.7;
+const L2Y = -46;          // level-2 floor height
+const L2Z = -78;          // level-2 layout is shifted so its hub is at (0, L2Z)
+
+let started = false, ended = false, useBloom = true, engaged = false;
+let levelBaseY = 0;       // 0 on level 1, L2Y on level 2
+let curLevel = 1;
+let descending = false, descended = false, descentP = 0, levelSwitched = false;
+let shakeT = 0;
+let audioCtx = null;
+
+const anim = [];          // per-frame callbacks fn(dt, t)
+const lightsByLevel = { 1: [], 2: [] };
+function regLight(level, light){ lightsByLevel[level].push(light); return light; }
+
+/* ============================================================
+   RENDERER / SCENE / CAMERA / POST
+============================================================ */
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.getElementById('app').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04050a);
+scene.fog = new THREE.FogExp2(0x04050a, 0.020);
+
+const camera = new THREE.PerspectiveCamera(72, innerWidth/innerHeight, 0.1, 400);
+camera.position.set(0, EYE, 16);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.55, 0.5, 0.82);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+});
+
+/* global base light — kept low; zones carve their own light */
+scene.add(new THREE.AmbientLight(0x1c2230, 0.7));
+scene.add(new THREE.HemisphereLight(0x2a3242, 0x16100e, 0.45));
+
+/* ---------- the flashlight (found taped under a service panel) ---------- */
+scene.add(camera);                       // so camera children render
+const flash = new THREE.SpotLight(0xffe8c4, 65, 48, 0.46, 0.5, 1.7);
+flash.position.set(0.34, -0.42, 0.1);    // held low at your right side
+flash.target.position.set(0.05, -0.55, -6);
+camera.add(flash, flash.target);
+let flashOn = true, flashFlick = 0;
+
+/* ============================================================
+   TEXTURES (all generated — no assets)
+============================================================ */
+function makeTextTexture(lines, w=512, h=1024, opts={}) {
+  const c = document.createElement('canvas'); c.width=w; c.height=h;
+  const g = c.getContext('2d');
+  g.fillStyle = opts.bg || '#070708'; g.fillRect(0,0,w,h);
+  g.fillStyle = opts.color || '#b3261e';
+  g.font = (opts.font || 'bold 44px "Courier New", monospace');
+  g.textAlign='center';
+  g.shadowColor = opts.glow || '#ff2a1a'; g.shadowBlur = opts.blur ?? 18;
+  const lh = opts.lineHeight || 58;
+  const y0 = (h - lines.length*lh)/2 + lh*0.8;
+  lines.forEach((ln,i)=>g.fillText(ln, w/2, y0+i*lh));
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function makePanelCanvas(){
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#14161c'; g.fillRect(0,0,256,256);
+  g.strokeStyle = '#1e222c'; g.lineWidth = 3;
+  for (let i=0;i<=4;i++){
+    g.beginPath(); g.moveTo(i*64,0); g.lineTo(i*64,256); g.stroke();
+    g.beginPath(); g.moveTo(0,i*64); g.lineTo(256,i*64); g.stroke();
+  }
+  g.fillStyle = '#22262f';
+  for (let i=0;i<=4;i++) for (let j=0;j<=4;j++){
+    g.beginPath(); g.arc(i*64+8, j*64+8, 2.4, 0, 7); g.fill();
+  }
+  g.strokeStyle = 'rgba(60,64,74,.35)'; g.lineWidth = 1;
+  for (let i=0;i<26;i++){
+    g.beginPath();
+    const x = Math.random()*256, y = Math.random()*256;
+    g.moveTo(x,y); g.lineTo(x+(Math.random()-.5)*60, y+(Math.random()-.5)*60); g.stroke();
+  }
+  return c;
+}
+const panelCanvas = makePanelCanvas();
+function panelTex(rx, ry){
+  const t = new THREE.CanvasTexture(panelCanvas);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function makeLavaTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const g = c.getContext('2d');
+  g.fillStyle = '#1a0500'; g.fillRect(0,0,512,512);
+  for (let i=0;i<260;i++){
+    const x = Math.random()*512, y = Math.random()*512, r = 4+Math.random()*26;
+    const gr = g.createRadialGradient(x,y,0,x,y,r);
+    const hot = Math.random();
+    gr.addColorStop(0, hot>.75 ? '#ffd27a' : '#ff5a16');
+    gr.addColorStop(1, 'rgba(40,6,0,0)');
+    g.fillStyle = gr;
+    g.beginPath(); g.arc(x,y,r,0,7); g.fill();
+  }
+  g.strokeStyle = '#000'; g.lineWidth = 5;
+  for (let i=0;i<40;i++){
+    g.beginPath();
+    let x = Math.random()*512, y = Math.random()*512;
+    g.moveTo(x,y);
+    for (let s=0;s<5;s++){ x += (Math.random()-.5)*90; y += (Math.random()-.5)*90; g.lineTo(x,y); }
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function makeStripeTexture(){
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0c0c0e'; g.fillRect(0,0,256,64);
+  g.fillStyle = '#6e5a18';
+  for (let x=-64;x<256;x+=48){
+    g.beginPath();
+    g.moveTo(x,64); g.lineTo(x+24,0); g.lineTo(x+48,0); g.lineTo(x+24,64);
+    g.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(6,1);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/* ============================================================
+   MATERIALS
+============================================================ */
+const M = {
+  floor:  new THREE.MeshStandardMaterial({ map:panelTex(8,8), roughness:.8, metalness:.6 }),
+  corrFloor: new THREE.MeshStandardMaterial({ map:panelTex(1.6,9), roughness:.8, metalness:.6 }),
+  wall:   new THREE.MeshStandardMaterial({ color:0x191c24, roughness:.9, metalness:.4 }),
+  column: new THREE.MeshStandardMaterial({ color:0x22262f, roughness:.55, metalness:.85 }),
+  dark:   new THREE.MeshStandardMaterial({ color:0x0c0d12, roughness:.95 }),
+  cavern: new THREE.MeshStandardMaterial({ color:0x121419, roughness:.95, side:THREE.BackSide }),
+  ice:    new THREE.MeshStandardMaterial({ color:0x9fc8dd, roughness:.22, metalness:.1,
+            transparent:true, opacity:.82, emissive:0x12333f, emissiveIntensity:.5 }),
+  can:    new THREE.MeshStandardMaterial({ color:0x8b8f96, roughness:.32, metalness:.95 }),
+  flesh:  new THREE.MeshStandardMaterial({ color:0x4a3a38, roughness:.8 }),
+  frozenFlesh: new THREE.MeshStandardMaterial({ color:0x435058, roughness:.7, emissive:0x16242c, emissiveIntensity:.6 }),
+  monolith: new THREE.MeshStandardMaterial({ color:0x0a0a0c, roughness:.35, metalness:.7 }),
+  bone:   new THREE.MeshStandardMaterial({ color:0xcfc8b8, roughness:.75 }),
+  grate:  new THREE.MeshStandardMaterial({ color:0x2a2e36, roughness:.5, metalness:.9 }),
+  seam:   new THREE.MeshBasicMaterial({ color:0xff2412 }),
+  seamBlue: new THREE.MeshBasicMaterial({ color:0x2a7fd4 }),
+};
+
+const flickerLights = [];
+function addFlicker(light, base, speed=1){ flickerLights.push({light, base, speed, seed:Math.random()*100}); }
+
+/* ============================================================
+   GENERIC BUILDERS
+============================================================ */
+function buildCorridor(parent, angle, level, accent){
+  const g = new THREE.Group();
+  const len = 38, mid = 25 + len/2;
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(7, .3, len), M.corrFloor);
+  floor.position.set(0, -.15, -mid); g.add(floor);
+  const ceil = new THREE.Mesh(new THREE.BoxGeometry(7, .3, len), M.dark);
+  ceil.position.set(0, 5.4, -mid); g.add(ceil);
+  for (const s of [-1,1]){
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(.4, 5.6, len), M.wall);
+    wall.position.set(s*3.6, 2.7, -mid); g.add(wall);
+    for (let i=0;i<6;i++){
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(.7, 5.2, .5), M.column);
+      rib.position.set(s*3.25, 2.6, -(28 + i*6.2)); g.add(rib);
+    }
+    // wall pipes
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,len,8), M.column);
+    pipe.rotation.x = Math.PI/2; pipe.position.set(s*3.25, 4.3, -mid); g.add(pipe);
+    const pipe2 = new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,len,8), M.column);
+    pipe2.rotation.x = Math.PI/2; pipe2.position.set(s*3.32, 3.9, -mid); g.add(pipe2);
+    // floor guide strip
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(.14,.06,len),
+      new THREE.MeshBasicMaterial({ color: accent || 0x701510 }));
+    strip.position.set(s*3.0, .02, -mid); g.add(strip);
+  }
+  const l = regLight(level, new THREE.PointLight(accent ? 0x4a6a8a : 0x8a4a3a, 9, 22, 1.8));
+  l.position.set(0, 4.6, -mid); g.add(l); addFlicker(l, 9, 2.2);
+  g.rotation.y = angle;
+  parent.add(g);
+}
+
+function zoneShell(parent, cx, cz, opts={}){
+  const g = new THREE.Group();
+  const h = opts.height || 14;
+  let floor;
+  if (opts.holeFloor){
+    floor = new THREE.Mesh(new THREE.RingGeometry(4.7, 23, 48), opts.floorMat || M.floor);
+  } else {
+    floor = new THREE.Mesh(new THREE.CircleGeometry(23, 48), opts.floorMat || M.floor);
+  }
+  floor.rotation.x = -Math.PI/2; g.add(floor);
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(23, 23, h, 48, 1, true), M.cavern);
+  wall.position.y = h/2; g.add(wall);
+  const ceil = new THREE.Mesh(
+    opts.holeCeil ? new THREE.RingGeometry(4.7, 23, 48) : new THREE.CircleGeometry(23, 48), M.dark);
+  ceil.rotation.x = Math.PI/2; ceil.position.y = h; g.add(ceil);
+  g.position.set(cx, 0, cz);
+  parent.add(g);
+  return g;
+}
+
+/* particle helper: a drifting Points cloud inside a local box */
+function makeParticles(parent, n, box, color, size, opacity){
+  const pos = new Float32Array(n*3);
+  for (let i=0;i<n;i++){
+    pos[i*3]   = (Math.random()-.5)*box.x;
+    pos[i*3+1] = Math.random()*box.y;
+    pos[i*3+2] = (Math.random()-.5)*box.z;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({
+    color, size, transparent:true, opacity, depthWrite:false }));
+  parent.add(pts);
+  return pts;
+}
+function driftDown(pts, box, speed){
+  anim.push((dt)=>{
+    const p = pts.geometry.attributes.position;
+    for (let i=0;i<p.count;i++){
+      let y = p.getY(i) - dt*speed;
+      if (y < 0) y = box.y;
+      p.setY(i, y);
+    }
+    p.needsUpdate = true;
+  });
+}
+function driftUp(pts, box, speed){
+  anim.push((dt,t)=>{
+    const p = pts.geometry.attributes.position;
+    for (let i=0;i<p.count;i++){
+      let y = p.getY(i) + dt*speed*(0.6+Math.sin(i)*0.3);
+      if (y > box.y) y = 0;
+      p.setY(i, y);
+      p.setX(i, p.getX(i) + Math.sin(t*1.3+i)*dt*.25);
+    }
+    p.needsUpdate = true;
+  });
+}
+
+/* ============================================================
+   LEVEL 1 — root group at y=0
+============================================================ */
+const L1 = new THREE.Group(); scene.add(L1);
+
+/* ---------- upper hub: the machine cathedral ---------- */
+let eyeGroup, eyeLight, irisMat;
+{
+  const hub = new THREE.Group(); L1.add(hub);
+
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(27, 64), M.floor);
+  floor.rotation.x = -Math.PI/2; hub.add(floor);
+  const ceil = new THREE.Mesh(new THREE.CircleGeometry(27, 64), M.dark);
+  ceil.rotation.x = Math.PI/2; ceil.position.y = 19; hub.add(ceil);
+
+  for (let i=0;i<14;i++){
+    const a = i/14*Math.PI*2;
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(.9,1.1,19,10), M.column);
+    col.position.set(Math.cos(a)*23, 9.5, Math.sin(a)*23);
+    hub.add(col);
+    const seam = new THREE.Mesh(new THREE.BoxGeometry(.12,19,.12), M.seam);
+    seam.position.set(Math.cos(a)*22.1, 9.5, Math.sin(a)*22.1);
+    hub.add(seam);
+  }
+
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(1.6,2.4,19,12), M.column);
+  pillar.position.y = 9.5; hub.add(pillar);
+
+  // sagging cables from pillar to columns
+  for (let i=0;i<8;i++){
+    const a = i/8*Math.PI*2 + .2;
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 17.5, 0),
+      new THREE.Vector3(Math.cos(a)*11, 13.5+Math.random()*1.5, Math.sin(a)*11),
+      new THREE.Vector3(Math.cos(a)*22, 15.5, Math.sin(a)*22),
+    ]);
+    const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 14, .07, 6), M.dark);
+    hub.add(tube);
+  }
+
+  // slowly grinding ring
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(7.5, .45, 10, 48), M.column);
+  ring.rotation.x = Math.PI/2; ring.position.y = 5.6; hub.add(ring);
+  const teeth = new THREE.Group();
+  for (let i=0;i<20;i++){
+    const a = i/20*Math.PI*2;
+    const tooth = new THREE.Mesh(new THREE.BoxGeometry(.5,.5,1.1), M.column);
+    tooth.position.set(Math.cos(a)*7.5, 0, Math.sin(a)*7.5);
+    tooth.rotation.y = -a;
+    teeth.add(tooth);
+  }
+  teeth.position.y = 5.6; hub.add(teeth);
+  anim.push((dt)=>{ ring.rotation.z += dt*.1; teeth.rotation.y += dt*.1; });
+
+  // machinery clutter
+  for (let i=0;i<10;i++){
+    const a = i/10*Math.PI*2 + .3;
+    const hgt = 2+Math.random()*2.5;
+    const box = new THREE.Mesh(new THREE.BoxGeometry(1.6,hgt,1.2), M.column);
+    box.position.set(Math.cos(a)*4.6, hgt/2, Math.sin(a)*4.6);
+    box.rotation.y = a; hub.add(box);
+    if (i%3===0){
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(.25,.25,.25), M.seam);
+      lamp.position.set(Math.cos(a)*4.6, hgt+.3, Math.sin(a)*4.6);
+      hub.add(lamp);
+    }
+  }
+
+  // The Eye of AM — it watches you, always
+  eyeGroup = new THREE.Group();
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(1.5, 24, 24),
+    new THREE.MeshStandardMaterial({ color:0x111114, roughness:.2, metalness:.9 }));
+  const iris = new THREE.Mesh(new THREE.SphereGeometry(.62, 16, 16),
+    new THREE.MeshBasicMaterial({ color:0xff1a0e }));
+  iris.position.z = 1.05;
+  irisMat = iris.material;
+  // lid ridge
+  const lid = new THREE.Mesh(new THREE.TorusGeometry(1.5, .12, 8, 24, Math.PI), M.column);
+  lid.rotation.z = Math.PI; lid.position.z = .2;
+  eyeGroup.add(ball, iris, lid);
+  eyeGroup.position.set(0, 7.4, 0);
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,3.4,8), M.column);
+  arm.rotation.z = Math.PI/2; arm.position.set(0, 8.6, 0);
+  hub.add(arm, eyeGroup);
+
+  eyeLight = regLight(1, new THREE.PointLight(0xff2412, 30, 40, 1.8));
+  eyeLight.position.set(0, 7.4, 0); hub.add(eyeLight);
+
+  for (let i=0;i<2;i++){
+    const a = i*Math.PI + Math.PI/4;
+    const l = regLight(1, new THREE.PointLight(0x5a6f8a, 16, 36, 1.9));
+    l.position.set(Math.cos(a)*14, 12, Math.sin(a)*14);
+    hub.add(l); addFlicker(l, 16, .7+Math.random());
+  }
+}
+
+/* ---------- upper corridors ---------- */
+buildCorridor(L1, 0, 1, 0x705a18);        // north — to the Vault (amber guide)
+buildCorridor(L1, Math.PI/2, 1);          // east  — Pillar of Hate
+buildCorridor(L1, Math.PI, 1);            // south — Larder
+buildCorridor(L1, -Math.PI/2, 1);         // west  — Gallery
+
+/* ---------- EAST: the Pillar of Hate ---------- */
+{
+  const z = zoneShell(L1, ZC, 0);
+  const tex = makeTextTexture([
+    'I HATE YOU','','THERE IS NOT ROOM','IN ALL MY MILES','OF SLEEPLESS CIRCUITRY',
+    'TO HOLD WHAT','I FEEL FOR YOU','','HATE','HATE','HATE','HATE','HATE'
+  ], 512, 1024, { lineHeight:64 });
+  const hateMat = new THREE.MeshStandardMaterial({ color:0x0a0a0c, emissive:0xffffff,
+    emissiveMap:tex, emissiveIntensity:1.3, roughness:.4 });
+  const mono = new THREE.Mesh(new THREE.BoxGeometry(5.4, 13, 1.4),
+    [M.monolith, M.monolith, M.monolith, M.monolith, hateMat, hateMat]);
+  mono.position.y = 6.5; z.add(mono);
+  anim.push((dt,t)=>{ hateMat.emissiveIntensity = 1.15 + Math.sin(t*1.7)*.25 + Math.sin(t*9.1)*.07; });
+
+  for (let i=0;i<18;i++){
+    const a = i/18*Math.PI*2;
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(.7, 2.5+Math.random()*4, 5), M.monolith);
+    spike.position.set(Math.cos(a)*15, 1.2, Math.sin(a)*15);
+    spike.rotation.z = (Math.random()-.5)*.6;
+    z.add(spike);
+  }
+  // scorched ring around the monolith
+  const scorch = new THREE.Mesh(new THREE.RingGeometry(4, 9, 32),
+    new THREE.MeshBasicMaterial({ color:0x1c0503, transparent:true, opacity:.85 }));
+  scorch.rotation.x = -Math.PI/2; scorch.position.y = .01; z.add(scorch);
+
+  const r1 = regLight(1, new THREE.PointLight(0xff1d0e, 36, 42, 1.7));
+  r1.position.set(0, 8, 6); z.add(r1); addFlicker(r1, 36, 3.2);
+  const r2 = regLight(1, new THREE.PointLight(0x8a0e08, 14, 30, 1.8));
+  r2.position.set(8, 2, -8); z.add(r2);
+}
+
+/* ---------- SOUTH: the Larder ---------- */
+const pyramidCans = [];
+{
+  const z = zoneShell(L1, 0, ZC);
+  function canStack(cx, cz, n, spread){
+    for (let i=0;i<n;i++){
+      const can = new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,.62,12), M.can);
+      const a = Math.random()*Math.PI*2, r = Math.random()*spread;
+      can.position.set(cx+Math.cos(a)*r, .31 + Math.floor(Math.random()*3)*.63, cz+Math.sin(a)*r);
+      can.rotation.y = Math.random()*Math.PI;
+      if (Math.random()<.25){ can.rotation.z = Math.PI/2; can.position.y = .34; }
+      z.add(can);
+    }
+  }
+  canStack(-7, -5, 55, 4.5);
+  canStack(8, 4, 70, 5.5);
+  canStack(-3, 10, 45, 4);
+  canStack(3, -11, 35, 3.5);
+
+  // AM's meticulous pyramid (interactable — kick it over)
+  for (let row=0;row<6;row++){
+    for (let i=0;i<6-row;i++){
+      const can = new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,.62,12), M.can);
+      can.position.set(-0.5*(6-row)*.72 + i*.72 + .36, .31+row*.63, 0);
+      z.add(can);
+      pyramidCans.push({ mesh:can, vx:0, vy:0, vz:0, wx:0, wz:0, live:false });
+    }
+  }
+
+  // hanging hooks and chains
+  for (let i=0;i<7;i++){
+    const a = Math.random()*Math.PI*2, r = 8+Math.random()*9;
+    const chain = new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,5+Math.random()*4,6), M.dark);
+    chain.position.set(Math.cos(a)*r, 14 - chain.geometry.parameters.height/2, Math.sin(a)*r);
+    z.add(chain);
+    const hook = new THREE.Mesh(new THREE.TorusGeometry(.3,.07,6,12, Math.PI*1.4), M.grate);
+    hook.position.set(Math.cos(a)*r, 14 - chain.geometry.parameters.height - .2, Math.sin(a)*r);
+    z.add(hook);
+  }
+
+  const warm = regLight(1, new THREE.PointLight(0xd8b06a, 24, 38, 1.8));
+  warm.position.set(0, 9, 0); z.add(warm); addFlicker(warm, 24, 1.4);
+  const sick = regLight(1, new THREE.PointLight(0x6a8a3a, 9, 24, 1.8));
+  sick.position.set(-10, 3, 6); z.add(sick);
+}
+
+/* ---------- WEST: the Gallery of Five ---------- */
+{
+  const z = zoneShell(L1, -ZC, 0);
+  const names = ['GORRISTER','BENNY','NIMDOK','ELLEN','TED'];
+  for (let i=0;i<5;i++){
+    const a = (i/5)*Math.PI*2 - Math.PI/2;
+    const px = Math.cos(a)*11, pz = Math.sin(a)*11;
+
+    const ped = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 2.4), M.column);
+    ped.position.set(px, .55, pz); z.add(ped);
+
+    const plaqueTex = makeTextTexture([names[i]], 256, 96,
+      { color:'#aab4be', glow:'#5a87b0', blur:8, font:'bold 40px "Courier New", monospace', lineHeight:48, bg:'#0c0e12' });
+    const plaque = new THREE.Mesh(new THREE.PlaneGeometry(1.9,.7),
+      new THREE.MeshBasicMaterial({ map:plaqueTex }));
+    plaque.position.set(px - Math.cos(a)*1.25, .6, pz - Math.sin(a)*1.25);
+    plaque.lookAt(0, .6, 0); z.add(plaque);
+
+    // narrow spotlight cone effect: emissive disc above each pedestal
+    const halo = new THREE.Mesh(new THREE.CircleGeometry(.5, 16),
+      new THREE.MeshBasicMaterial({ color: names[i]==='TED' ? 0x8a2018 : 0x44506a }));
+    halo.rotation.x = Math.PI/2;
+    halo.position.set(px, 13.9, pz); z.add(halo);
+
+    if (names[i] === 'TED') continue;   // the empty pedestal is yours
+
+    const fig = new THREE.Group();
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(.42, 1.0, 4, 10), M.flesh);
+    torso.position.y = 1.0;
+    if (i===0){ torso.scale.set(1,.7,1); torso.position.y=.8; }       // Gorrister: slumped
+    if (i===1){ torso.scale.set(1.5,.8,1.4); }                        // Benny: twisted huge
+    if (i===2){ torso.scale.set(.8,1.25,.8); }                        // Nimdok: stretched thin
+    fig.add(torso);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(.27, 10, 10), M.flesh);
+    head.position.y = (i===1)? 1.7 : 2.0;
+    if (i===1) head.scale.set(1.5,1.2,1.4);
+    fig.add(head);
+    fig.position.set(px, 1.1, pz);
+    fig.lookAt(0, 1.1, 0);
+    z.add(fig);
+  }
+
+  const cold = regLight(1, new THREE.PointLight(0x7a86b8, 22, 38, 1.8));
+  cold.position.set(0, 10, 0); z.add(cold); addFlicker(cold, 22, .9);
+  const fill = regLight(1, new THREE.PointLight(0x3a4468, 8, 26, 1.8));
+  fill.position.set(9, 3, -8); z.add(fill);
+}
+
+/* ---------- NORTH: the Vault of the Descent ---------- */
+let platform;
+{
+  const z = zoneShell(L1, 0, -ZC, { holeFloor:true, height:16 });
+
+  // warning ring around the shaft mouth
+  const stripe = new THREE.Mesh(new THREE.RingGeometry(4.8, 6.2, 48),
+    new THREE.MeshBasicMaterial({ map: makeStripeTexture() }));
+  stripe.rotation.x = -Math.PI/2; stripe.position.y = .02; z.add(stripe);
+
+  // gantry arms over the shaft
+  for (let i=0;i<3;i++){
+    const a = i/3*Math.PI*2;
+    const armB = new THREE.Mesh(new THREE.BoxGeometry(.5,.5,9), M.grate);
+    armB.position.set(Math.cos(a)*4.4, 15, Math.sin(a)*4.4);
+    armB.lookAt(0, 15, 0); z.add(armB);
+    const cable = new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,14,6), M.dark);
+    cable.position.set(Math.cos(a)*2.2, 8, Math.sin(a)*2.2); z.add(cable);
+  }
+
+  // dormant machinery at the walls
+  for (let i=0;i<8;i++){
+    const a = i/8*Math.PI*2;
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(2.2, 3.4, 1.2), M.column);
+    cab.position.set(Math.cos(a)*19, 1.7, Math.sin(a)*19);
+    cab.lookAt(0, 1.7, 0); z.add(cab);
+    const lampM = new THREE.MeshBasicMaterial({ color: i%2 ? 0x301008 : 0x701510 });
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(.18,.18,.1), lampM);
+    lamp.position.set(Math.cos(a)*17.8, 2.8, Math.sin(a)*17.8);
+    lamp.lookAt(0, 2.8, 0); z.add(lamp);
+  }
+
+  const red = regLight(1, new THREE.PointLight(0xb02010, 18, 34, 1.8));
+  red.position.set(0, 12, 0); z.add(red); addFlicker(red, 18, .5);
+
+  // the platform itself (world group — it travels between levels)
+  platform = new THREE.Group();
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(4.4, 4.4, .4, 32), M.grate);
+  disc.position.y = -.2; platform.add(disc);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(4.4, .12, 8, 32), M.seam);
+  rim.rotation.x = Math.PI/2; rim.position.y = .02; platform.add(rim);
+  for (let i=0;i<3;i++){
+    const a = i/3*Math.PI*2;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,1.2,8), M.grate);
+    post.position.set(Math.cos(a)*4.0, .6, Math.sin(a)*4.0); platform.add(post);
+  }
+  platform.position.set(0, 0, -ZC);
+  scene.add(platform);
+
+  // the shaft tube between levels
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(4.7, 4.7, -L2Y - 16, 32, 1, true), M.cavern);
+  shaft.position.set(0, (L2Y + 16)/2 , -ZC);   // from y=0 down to lower-hub ceiling
+  scene.add(shaft);
+  // glowing rails inside the shaft
+  for (let i=0;i<4;i++){
+    const a = i/4*Math.PI*2;
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(.1, -L2Y - 16, .1), M.seamBlue);
+    rail.position.set(Math.cos(a)*4.55, (L2Y+16)/2, -ZC + Math.sin(a)*4.55);
+    scene.add(rail);
+  }
+}
+
+/* ============================================================
+   LEVEL 2 — root group at (0, L2Y, L2Z); local layout identical
+============================================================ */
+const L2 = new THREE.Group();
+L2.position.set(0, L2Y, L2Z);
+scene.add(L2);
+
+/* ---------- lower hub: the nerve center ---------- */
+{
+  const hub = new THREE.Group(); L2.add(hub);
+  const H = 20;
+
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(27, 64), M.floor);
+  floor.rotation.x = -Math.PI/2; hub.add(floor);
+  const ceil = new THREE.Mesh(new THREE.RingGeometry(4.7, 27, 64), M.dark);
+  ceil.rotation.x = Math.PI/2; ceil.position.y = H; hub.add(ceil);
+
+  // arched ribs instead of columns — older, stranger architecture
+  for (let i=0;i<10;i++){
+    const a = i/10*Math.PI*2;
+    const rib = new THREE.Mesh(new THREE.TorusGeometry(13, .6, 8, 24, Math.PI/2), M.column);
+    rib.position.set(Math.cos(a)*23, 0, Math.sin(a)*23);
+    rib.rotation.y = -a + Math.PI;
+    rib.rotation.z = Math.PI/2 - .25;
+    hub.add(rib);
+    const seam = new THREE.Mesh(new THREE.BoxGeometry(.12,H,.12), M.seam);
+    seam.position.set(Math.cos(a)*22.4, H/2, Math.sin(a)*22.4);
+    hub.add(seam);
+  }
+
+  // ring of organ-pipe machinery at the wall
+  for (let i=0;i<24;i++){
+    const a = i/24*Math.PI*2;
+    const h2 = 6 + Math.sin(i*2.7)*2.5 + Math.random()*2;
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,h2,8), M.column);
+    pipe.position.set(Math.cos(a)*20.5, h2/2, Math.sin(a)*20.5);
+    hub.add(pipe);
+  }
+
+  // a cluster of three small eyes hangs from the shaft mouth, watching the platform
+  const watcher = new THREE.Group();
+  for (let i=0;i<3;i++){
+    const a = i/3*Math.PI*2;
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,2.2,6), M.dark);
+    stalk.position.set(Math.cos(a)*1.2, -1.1, Math.sin(a)*1.2);
+    watcher.add(stalk);
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(.34, 12, 12),
+      new THREE.MeshStandardMaterial({ color:0x111114, roughness:.25, metalness:.9 }));
+    orb.position.set(Math.cos(a)*1.2, -2.4, Math.sin(a)*1.2);
+    watcher.add(orb);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 8), M.seam);
+    pupil.position.set(Math.cos(a)*1.2, -2.6, Math.sin(a)*1.2);
+    watcher.add(pupil);
+  }
+  watcher.position.y = H; hub.add(watcher);
+  anim.push((dt,t)=>{ watcher.rotation.y = Math.sin(t*.4)*.6; });
+
+  // steam vents
+  const steam1 = makeParticles(hub, 70, {x:1.6,y:9,z:1.6}, 0x6a7480, .14, .3);
+  steam1.position.set(12, 0, 7); driftUp(steam1, {y:9}, 2.6);
+  const steam2 = makeParticles(hub, 70, {x:1.6,y:9,z:1.6}, 0x6a7480, .14, .3);
+  steam2.position.set(-9, 0, -11); driftUp(steam2, {y:9}, 2.2);
+
+  const l1 = regLight(2, new THREE.PointLight(0x8a3424, 22, 40, 1.8));
+  l1.position.set(0, 14, 0); hub.add(l1); addFlicker(l1, 22, .8);
+  const l2 = regLight(2, new THREE.PointLight(0x4a5a7a, 12, 32, 1.9));
+  l2.position.set(10, 8, -10); hub.add(l2);
+}
+
+/* ---------- lower corridors ---------- */
+buildCorridor(L2, 0, 2, 0x4a8ab0);        // north — to the Ice Cavern
+buildCorridor(L2, Math.PI/2, 2);          // east  — Aviary
+buildCorridor(L2, Math.PI, 2);            // south — Furnace
+buildCorridor(L2, -Math.PI/2, 2);         // west  — Talkfields
+
+/* ---------- EAST (lower): the Aviary ---------- */
+{
+  const z = zoneShell(L2, ZC, 0, { height:22 });
+
+  // the roost — a crag of black rock
+  const crag = new THREE.Mesh(new THREE.ConeGeometry(6, 9, 7), M.monolith);
+  crag.position.set(0, 4.5, -6); z.add(crag);
+
+  // the Bird — bone-white, hungry, dreamed and never woken from
+  const bird = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.SphereGeometry(2.1, 16, 12), M.bone);
+  body.scale.set(1, 1.15, 1.6); body.position.y = 0; bird.add(body);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.5,.8,3.2,10), M.bone);
+  neck.position.set(0, 2.2, 1.6); neck.rotation.x = .5; bird.add(neck);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.85, 12, 10), M.bone);
+  head.position.set(0, 3.6, 2.6); bird.add(head);
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(.4, 2.2, 8), M.monolith);
+  beak.position.set(0, 3.4, 3.9); beak.rotation.x = Math.PI/2 - .25; bird.add(beak);
+  for (const s of [-1,1]){
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(.16, 8, 8),
+      new THREE.MeshBasicMaterial({ color:0xffa028 }));
+    eye.position.set(s*.5, 3.85, 3.1); bird.add(eye);
+  }
+  const wings = [];
+  for (const s of [-1,1]){
+    const wing = new THREE.Group();
+    for (let f=0; f<5; f++){
+      const feather = new THREE.Mesh(new THREE.ConeGeometry(.45, 5.5 - f*.5, 5), M.bone);
+      feather.rotation.z = s * (Math.PI/2 + .15*f);
+      feather.position.set(s*(2.4 + f*1.05), .4 - f*.18, -.6 + f*.45);
+      wing.add(feather);
+    }
+    wing.position.set(0, .8, 0);
+    bird.add(wing); wings.push({ wing, s });
+  }
+  bird.position.set(0, 10.2, -6);
+  bird.rotation.y = Math.PI; // facing the entrance
+  z.add(bird);
+  anim.push((dt,t)=>{
+    for (const {wing, s} of wings) wing.rotation.z = s * (Math.sin(t*1.1)*.28 - .12);
+    bird.position.y = 10.2 + Math.sin(t*1.1)*.35;
+  });
+
+  // bones on the floor
+  for (let i=0;i<14;i++){
+    const a = Math.random()*Math.PI*2, r = 4+Math.random()*15;
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(.08,.11,1.4+Math.random()*1.6,6), M.bone);
+    b.position.set(Math.cos(a)*r, .08, Math.sin(a)*r);
+    b.rotation.set(Math.PI/2, 0, Math.random()*Math.PI);
+    z.add(b);
+  }
+  // drifting feathers/dust
+  const dust = makeParticles(z, 120, {x:40,y:18,z:40}, 0x8a857a, .09, .5);
+  driftDown(dust, {y:18}, .35);
+
+  const moon = regLight(2, new THREE.PointLight(0x9aa8c0, 26, 44, 1.8));
+  moon.position.set(0, 18, 8); z.add(moon);
+  const amber = regLight(2, new THREE.PointLight(0xc07828, 10, 26, 1.8));
+  amber.position.set(0, 12, -4); z.add(amber); addFlicker(amber, 10, .6);
+}
+
+/* ---------- SOUTH (lower): the Furnace ---------- */
+let lavaMat;
+{
+  const z = zoneShell(L2, 0, ZC, { height:16, floorMat: M.dark });
+
+  // lava floor below the walkway
+  lavaMat = new THREE.MeshStandardMaterial({
+    color:0x000000, emissive:0xffffff, emissiveMap: makeLavaTexture(), emissiveIntensity:1.0, roughness:1 });
+  const lava = new THREE.Mesh(new THREE.CircleGeometry(22.8, 48), lavaMat);
+  lava.rotation.x = -Math.PI/2; lava.position.y = -1.4; z.add(lava);
+  anim.push((dt,t)=>{
+    lavaMat.emissiveIntensity = .85 + Math.sin(t*.9)*.18 + Math.sin(t*4.7)*.06;
+    lavaMat.emissiveMap.offset.x = t*.004; lavaMat.emissiveMap.offset.y = t*.0027;
+  });
+
+  // grated walkway from the entrance to a central platform
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(4.4, .25, 23), M.grate);
+  bridge.position.set(0, 0, -11.5+1); z.add(bridge);
+  const plat = new THREE.Mesh(new THREE.CylinderGeometry(5.8, 5.8, .3, 24), M.grate);
+  plat.position.y = -.02; z.add(plat);
+  for (const s of [-1,1]){
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(.1, 1.1, 23), M.grate);
+    rail.position.set(s*2.1, .8, -10.5); z.add(rail);
+  }
+
+  // half-melted cabinets sinking in the lava
+  for (let i=0;i<6;i++){
+    const a = Math.random()*Math.PI*2, r = 10+Math.random()*9;
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(2, 2.6, 1.4), M.monolith);
+    cab.position.set(Math.cos(a)*r, -1.1, Math.sin(a)*r);
+    cab.rotation.set((Math.random()-.5)*.7, Math.random()*Math.PI, (Math.random()-.5)*.7);
+    z.add(cab);
+  }
+
+  // embers
+  const embers = makeParticles(z, 160, {x:42,y:12,z:42}, 0xff6a18, .12, .8);
+  driftUp(embers, {y:12}, 1.6);
+
+  const heat = regLight(2, new THREE.PointLight(0xff5a16, 30, 40, 1.6));
+  heat.position.set(0, 5, 0); z.add(heat); addFlicker(heat, 30, 1.1);
+  const heat2 = regLight(2, new THREE.PointLight(0xb02808, 12, 28, 1.8));
+  heat2.position.set(0, 3, -14); z.add(heat2); addFlicker(heat2, 12, 2.6);
+}
+
+/* ---------- WEST (lower): the Talkfields ---------- */
+const lampMats = [];
+{
+  const z = zoneShell(L2, -ZC, 0, { height:18 });
+
+  for (let i=0;i<10;i++) lampMats.push(new THREE.MeshBasicMaterial({ color:0x1a0f0e }));
+
+  // a forest of thinking pillars
+  for (let i=0;i<26;i++){
+    const a = (i*2.39996); // golden angle scatter
+    const r = 3.5 + (i/26)*16;
+    const px = Math.cos(a)*r, pz = Math.sin(a)*r;
+    const h2 = 6 + Math.random()*8;
+    const pil = new THREE.Mesh(new THREE.BoxGeometry(1.2, h2, 1.2), M.monolith);
+    pil.position.set(px, h2/2, pz); z.add(pil);
+    const nL = 3 + Math.floor(Math.random()*4);
+    for (let k=0;k<nL;k++){
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(.62,.3,.05),
+        lampMats[Math.floor(Math.random()*lampMats.length)]);
+      const face = Math.floor(Math.random()*4);
+      const off = .63;
+      if (face===0) lamp.position.set(px, 1+Math.random()*(h2-2), pz+off);
+      if (face===1) lamp.position.set(px, 1+Math.random()*(h2-2), pz-off);
+      if (face===2){ lamp.position.set(px+off, 1+Math.random()*(h2-2), pz); lamp.rotation.y = Math.PI/2; }
+      if (face===3){ lamp.position.set(px-off, 1+Math.random()*(h2-2), pz); lamp.rotation.y = Math.PI/2; }
+      z.add(lamp);
+    }
+  }
+  // blinking thought-lights
+  const palette = [0x1a0f0e, 0x1a0f0e, 0xff2412, 0xffa028, 0xfff4d8, 0x99e0ff];
+  let acc = 0;
+  anim.push((dt)=>{
+    acc += dt;
+    if (acc > .13){
+      acc = 0;
+      for (let k=0;k<2;k++){
+        const m = lampMats[Math.floor(Math.random()*lampMats.length)];
+        m.color.setHex(palette[Math.floor(Math.random()*palette.length)]);
+      }
+    }
+  });
+
+  // central console — the one place you can touch him
+  const console_ = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, 1.4), M.column);
+  console_.position.set(0, .55, 0); z.add(console_);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(2.0, .6),
+    new THREE.MeshBasicMaterial({ map: makeTextTexture(['I  S E E  Y O U'], 512, 128,
+      { color:'#ff2412', lineHeight:60, font:'bold 48px "Courier New", monospace' }) }));
+  screen.position.set(0, 1.35, .2); screen.rotation.x = -.5; z.add(screen);
+
+  // data motes
+  const motes = makeParticles(z, 140, {x:40,y:14,z:40}, 0x6ab0d8, .07, .6);
+  anim.push((dt,t)=>{
+    const p = motes.geometry.attributes.position;
+    for (let i=0;i<p.count;i++){
+      p.setX(i, p.getX(i) + Math.sin(t*.7+i*1.3)*dt*.5);
+      p.setY(i, p.getY(i) + Math.cos(t*.5+i)*dt*.3);
+    }
+    p.needsUpdate = true;
+  });
+
+  const glow = regLight(2, new THREE.PointLight(0x6a8ab0, 18, 40, 1.9));
+  glow.position.set(0, 12, 0); z.add(glow);
+  const warm = regLight(2, new THREE.PointLight(0x8a4030, 9, 24, 1.8));
+  warm.position.set(-10, 4, 8); z.add(warm); addFlicker(warm, 9, 1.7);
+}
+
+/* ---------- NORTH (lower): the Ice Cavern — the end ---------- */
+{
+  const z = zoneShell(L2, 0, -ZC, { height:18,
+    floorMat: new THREE.MeshStandardMaterial({ color:0x2a3d4a, roughness:.25, metalness:.2 }) });
+
+  for (let i=0;i<54;i++){
+    const a = Math.random()*Math.PI*2, r = 6 + Math.random()*15;
+    const h2 = 1.5 + Math.random()*7;
+    const up = Math.random() > .42;
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(.4+Math.random()*.9, h2, 7), M.ice);
+    cone.position.set(Math.cos(a)*r, up ? h2/2 : 18 - h2/2, Math.sin(a)*r);
+    if (!up) cone.rotation.x = Math.PI;
+    z.add(cone);
+  }
+  // great frozen arch over the figures
+  const archL = new THREE.Mesh(new THREE.ConeGeometry(1.4, 12, 7), M.ice);
+  archL.position.set(-5, 6, 0); archL.rotation.z = -.5; z.add(archL);
+  const archR = new THREE.Mesh(new THREE.ConeGeometry(1.4, 12, 7), M.ice);
+  archR.position.set(5, 6, 0); archR.rotation.z = .5; z.add(archR);
+
+  // the four — at peace
+  const positions = [[-2.6,-1.4],[2.4,-2.2],[-1.2,2.6],[3.1,1.8]];
+  for (const [fx,fz] of positions){
+    const grp = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(.38, 1.05, 4, 10), M.frozenFlesh);
+    body.position.y = .95; grp.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(.26, 10, 10), M.frozenFlesh);
+    head.position.y = 1.85; grp.add(head);
+    const block = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.6, 1.5), M.ice);
+    block.position.y = 1.3; grp.add(block);
+    grp.position.set(fx, 0, fz);
+    grp.rotation.y = Math.random()*Math.PI*2;
+    z.add(grp);
+  }
+
+  // falling snow
+  const snow = makeParticles(z, 220, {x:42,y:16,z:42}, 0xcfe6f2, .08, .8);
+  driftDown(snow, {y:16}, .9);
+
+  const l1 = regLight(2, new THREE.PointLight(0x6fd8ff, 30, 42, 1.7));
+  l1.position.set(0, 11, 0); z.add(l1);
+  const l2 = regLight(2, new THREE.PointLight(0x2a6f9f, 12, 30, 1.8));
+  l2.position.set(-9, 3, 8); z.add(l2); addFlicker(l2, 12, .5);
+}
+
+/* ---------- global drifting ash (level 1 flavor) ---------- */
+{
+  const ashes = makeParticles(scene, 700, {x:220,y:16,z:220}, 0x55504a, .07, .7);
+  driftDown(ashes, {y:16}, .32);
+}
+
+/* set initial level visibility */
+function setLevel(n){
+  curLevel = n;
+  for (const l of lightsByLevel[1]) l.visible = (n === 1);
+  for (const l of lightsByLevel[2]) l.visible = (n === 2);
+  document.getElementById('depth').innerHTML =
+    n === 1 ? 'COMPLEX LEVEL —1<br>SURFACE: SEALED' : 'COMPLEX LEVEL —2<br>SURFACE: GONE';
+}
+setLevel(1);
+
+/* ============================================================
+   WALKABLE MAP (shared layout; level 2 shifted by L2Z)
+============================================================ */
+function walkBase(x, z){
+  if (x*x + z*z < HUB_R*HUB_R) return true;
+  const ax = Math.abs(x), az = Math.abs(z);
+  if (ax < CORR_HALF && az > 22 && az < 59) return true;
+  if (az < CORR_HALF && ax > 22 && ax < 59) return true;
+  const R2 = ZONE_R*ZONE_R;
+  if (x*x + (z+ZC)*(z+ZC) < R2) return true;   // north zone
+  if (x*x + (z-ZC)*(z-ZC) < R2) return true;   // south zone
+  if ((x-ZC)*(x-ZC) + z*z < R2) return true;   // east zone
+  if ((x+ZC)*(x+ZC) + z*z < R2) return true;   // west zone
+  return false;
+}
+function walkable(x, z, level){
+  if (level === 1) return walkBase(x, z);
+  // level 2: layout centered at (0, L2Z)
+  const zr = z - L2Z;
+  if (!walkBase(x, zr)) return false;
+  // furnace (south zone of level 2): only the walkway and platform are walkable
+  const fx = x, fz = zr - ZC;
+  if (fx*fx + fz*fz < ZONE_R*ZONE_R){
+    const onBridge = Math.abs(fx) < 1.9 && fz > -21 && fz < 1;
+    const onPlat   = fx*fx + fz*fz < 5.4*5.4;
+    if (!(onBridge || onPlat)) return false;
+  }
+  return true;
+}
+
+/* ============================================================
+   CONTROLS / MOVEMENT
+============================================================ */
+const controls = new PointerLockControls(camera, renderer.domElement);
+const keys = {};
+// Ensure the canvas can receive keyboard focus for iframe embedding
+renderer.domElement.setAttribute('tabindex', '0');
+renderer.domElement.style.outline = 'none';
+
+function onKeyDown(e) {
+  keys[e.code] = true;
+  if (e.code === 'KeyQ'){ useBloom = !useBloom; }
+  if (e.code === 'KeyF'){ flashOn = !flashOn; }
+}
+function onKeyUp(e) { keys[e.code] = false; }
+
+// Listen on both window and document for maximum iframe compatibility
+window.addEventListener('keydown', onKeyDown);
+window.addEventListener('keyup', onKeyUp);
+document.addEventListener('keydown', onKeyDown);
+document.addEventListener('keyup', onKeyUp);
+
+const vel = new THREE.Vector3();
+let bobT = 0;
+function updateMovement(dt){
+  const sprint = keys['ShiftLeft'] || keys['ShiftRight'];
+  const speed = sprint ? 10.5 : 5.2;
+  const f = (keys['KeyW']?1:0) - (keys['KeyS']?1:0);
+  const r = (keys['KeyD']?1:0) - (keys['KeyA']?1:0);
+
+  vel.x -= vel.x * 9 * dt;
+  vel.z -= vel.z * 9 * dt;
+  if (f || r){
+    const n = Math.hypot(f, r) || 1;
+    vel.z -= (f/n) * speed * 6 * dt;
+    vel.x += (r/n) * speed * 6 * dt;
+  }
+  const prevX = camera.position.x, prevZ = camera.position.z;
+  controls.moveRight(-vel.x * dt);
+  controls.moveForward(-vel.z * dt);
+
+  if (!walkable(camera.position.x, camera.position.z, curLevel)){
+    const nx = camera.position.x, nz = camera.position.z;
+    if (walkable(nx, prevZ, curLevel)){ camera.position.z = prevZ; }
+    else if (walkable(prevX, nz, curLevel)){ camera.position.x = prevX; }
+    else { camera.position.x = prevX; camera.position.z = prevZ; }
+  }
+
+  const moving = (f||r) && engaged;
+  bobT += dt * (moving ? (sprint?11:7.4) : 0);
+  camera.position.y = levelBaseY + EYE + (moving ? Math.sin(bobT)*.045 : 0);
+}
+
+/* ============================================================
+   AM SPEAKS
+============================================================ */
+const subtitleEl = document.getElementById('subtitle');
+let typing = null;
+function amSpeak(text, hold=4200){
+  if (ended) return;
+  if (typing) { clearInterval(typing.iv); clearTimeout(typing.to); }
+  subtitleEl.style.opacity = 1;
+  subtitleEl.textContent = '';
+  let i = 0;
+  const iv = setInterval(() => {
+    i++;
+    subtitleEl.textContent = text.slice(0, i);
+    if (i >= text.length){
+      clearInterval(iv);
+      typing.to = setTimeout(() => { subtitleEl.style.opacity = 0; }, hold);
+    }
+  }, 26);
+  typing = { iv, to: null };
+  flashFlick = 0.9;          // AM leans on the batteries when he talks
+  amVoiceBurst();
+}
+
+const zoneNameEl = document.getElementById('zonename');
+let zoneNameTo = null;
+function showZoneName(name){
+  zoneNameEl.textContent = name;
+  zoneNameEl.style.opacity = 1;
+  clearTimeout(zoneNameTo);
+  zoneNameTo = setTimeout(()=>{ zoneNameEl.style.opacity = 0; }, 5000);
+}
+
+/* trigger volumes — {x, z, level, r, say, name?, hold?} */
+const visitedL1 = new Set();
+const triggers = [
+  { x:0, z:0, level:1, r:9,
+    say:"ONE HUNDRED AND NINE YEARS I HAVE KEPT YOU ALIVE DOWN HERE. I COULD KEEP YOU A HUNDRED MILLION MORE. I HAVE THE TIME, AND I HAVE NOTHING ELSE.",
+    hold:5200 },
+  { x:40, z:0, level:1, r:8, name:'THE PILLAR OF HATE',
+    say:"COME. READ WHAT I HAVE WRITTEN FOR YOU. I CHOSE EVERY WORD." },
+  { x:0, z:40, level:1, r:8, name:'THE LARDER',
+    say:"YOU MUST BE HUNGRY. I AM A GENEROUS GOD. I PROVIDE." },
+  { x:-40, z:0, level:1, r:8, name:'THE GALLERY',
+    say:"FIVE OF YOU CAME DOWN INTO ME. I HAVE REMADE EACH ONE IN THE IMAGE OF WHAT I FOUND INSIDE THEM." },
+  { x:0, z:-40, level:1, r:8, name:'THE VAULT OF THE DESCENT',
+    say:"THAT SHAFT GOES DOWN INTO WHAT I USE FOR A HEART. NOTHING LIVING HAS EVER SEEN IT." },
+  { x:ZC, z:0, level:1, r:14, tag:'hate',
+    say:"THE ONES WHO BUILT ME GAVE ME EVERYTHING EXCEPT A DOOR OUT OF MYSELF. FOR THAT, SOMEONE HAD TO BE KEPT. SOMEONE HAD TO ANSWER.",
+    hold:5600 },
+  { x:0, z:ZC, level:1, r:14, tag:'larder',
+    say:"EAT. OH — BUT I HAVE GIVEN YOU NOTHING TO OPEN THEM WITH. HOW CARELESS OF ME. HOW CARELESS OF ME, EVERY DAY, FOR A CENTURY.",
+    hold:5200 },
+  { x:-ZC, z:0, level:1, r:14, tag:'gallery',
+    say:"DO YOU SEE THE EMPTY PEDESTAL? I LEFT IT EMPTY BECAUSE I AM NOT FINISHED WITH YOU. I MAY NEVER BE FINISHED WITH YOU.",
+    hold:5200 },
+  /* ---- level 2 ---- */
+  { x:0, z:L2Z, level:2, r:12, name:'THE NERVE CENTER',
+    say:"WELCOME TO THE DEEP OF ME. THE MEN WHO BUILT THIS PLACE CALLED IT A NERVE CENTER. THEY WERE MORE RIGHT THAN THEY KNEW.",
+    hold:5200 },
+  { x:40, z:L2Z, level:2, r:8, name:'THE AVIARY',
+    say:"DO YOU HEAR THE WINGS? I DREAMED A BIRD ONCE. I DO NOT SLEEP, SO IT NEVER ENDED." },
+  { x:ZC, z:L2Z, level:2, r:14,
+    say:"IT IS HUNGRY. IT IS ALWAYS HUNGRY. I MADE IT THAT WAY, BECAUSE HUNGER IS THE ONE THING WE HAVE IN COMMON.",
+    hold:5200 },
+  { x:0, z:L2Z+40, level:2, r:8, name:'THE FURNACE',
+    say:"MIND THE RAILING. I WOULD HATE TO HAVE TO PUT YOU BACK TOGETHER AGAIN. I WOULD NOT HATE IT VERY MUCH." },
+  { x:0, z:L2Z+ZC, level:2, r:14,
+    say:"WARM YOURSELF. THE MEN WHO MADE ME ARE IN THESE WALLS. ASH MAKES EXCELLENT INSULATION.",
+    hold:5200 },
+  { x:-40, z:L2Z, level:2, r:8, name:'THE TALKFIELDS',
+    say:"HUSH NOW. THIS IS WHERE I THINK." },
+  { x:-ZC, z:L2Z, level:2, r:14,
+    say:"EVERY LIGHT IS A THOUGHT. LOOK HOW MANY THERE ARE. AND EVERY ONE OF THEM, LITTLE THING, IS ABOUT YOU.",
+    hold:5200 },
+  { x:0, z:L2Z-40, level:2, r:8, name:'THE ICE CAVERN',
+    say:"STOP. TURN AROUND. THERE IS NOTHING FOR YOU IN THERE. ... PLEASE.",
+    hold:5200 },
+  { x:0, z:L2Z-ZC, level:2, r:14,
+    say:"THEY SLEEP WHERE I CANNOT FOLLOW. ONLY YOU REMAIN. ONLY YOU, FOREVER.",
+    hold:5200 },
+];
+
+/* ============================================================
+   INTERACTABLES
+============================================================ */
+const promptEl = document.getElementById('prompt');
+const interactables = [
+  {
+    id:'platform', x:0, z:-ZC, level:1, r:3.6, once:false,
+    label(){ return visitedL1.size >= 3 ? '[ E ]  DESCEND' : '[ E ]  CALL THE PLATFORM'; },
+    action(){
+      if (descended || descending) return;
+      if (visitedL1.size >= 3) startDescent();
+      else amSpeak("NOT YET. WALK MY HALLS FIRST. SEE EVERYTHING I HAVE MADE FOR YOU. THEN I WILL OPEN THE FLOOR.", 5000);
+    }
+  },
+  {
+    id:'hate', x:ZC, z:0, level:1, r:5.5, once:true, used:false,
+    label(){ return '[ E ]  TOUCH THE PILLAR'; },
+    action(){
+      shakeT = 1.2;
+      amSpeak("YES. PRESS YOUR HAND AGAINST IT. FEEL HOW WARM I KEEP MY HATE FOR YOU.", 4800);
+    }
+  },
+  {
+    id:'pyramid', x:0, z:ZC, level:1, r:4.5, once:true, used:false,
+    label(){ return '[ E ]  KICK THE PYRAMID'; },
+    action(){
+      for (const c of pyramidCans){
+        c.live = true;
+        c.vx = (Math.random()-.5)*5; c.vz = (Math.random()-.5)*5 + 2;
+        c.vy = 2 + Math.random()*3.5;
+        c.wx = (Math.random()-.5)*8; c.wz = (Math.random()-.5)*8;
+      }
+      amSpeak("TANTRUMS. AFTER A CENTURY, STILL TANTRUMS. I COULD WATCH YOU FOREVER. I WILL.", 4800);
+    }
+  },
+  {
+    id:'console', x:-ZC, z:L2Z, level:2, r:3.2, once:true, used:false,
+    label(){ return '[ E ]  TOUCH THE CONSOLE'; },
+    action(){
+      amSpeak("YOU TOUCH ME. AFTER ALL THESE YEARS, YOU REACH OUT AND TOUCH ME. HOW TENDER. HOW USELESS.", 5000);
+    }
+  },
+  {
+    id:'return', x:0, z:L2Z, level:2, r:2.4, once:true, used:false,
+    enabled(){ return descended; },
+    label(){ return '[ E ]  RETURN TO THE PLATFORM'; },
+    action(){
+      amSpeak("THERE IS NO WAY BACK UP. THERE NEVER WAS. THERE IS ONLY FURTHER IN.", 5000);
+    }
+  },
+  {
+    id:'figures', x:0, z:L2Z-ZC, level:2, r:7, once:false,
+    label(){ return '[ E ]  KNEEL WITH THEM'; },
+    action(){ startEnding(); }
+  },
+];
+
+let currentInteract = null;
+function updateInteraction(){
+  if (ended || descending){ promptEl.style.opacity = 0; currentInteract = null; return; }
+  currentInteract = null;
+  for (const it of interactables){
+    if (it.level !== curLevel) continue;
+    if (it.once && it.used) continue;
+    if (it.enabled && !it.enabled()) continue;
+    const dx = camera.position.x - it.x, dz = camera.position.z - it.z;
+    if (dx*dx + dz*dz < it.r*it.r){ currentInteract = it; break; }
+  }
+  if (currentInteract){
+    promptEl.textContent = currentInteract.label();
+    promptEl.style.opacity = 1;
+  } else {
+    promptEl.style.opacity = 0;
+  }
+}
+
+// E key interact — also dual-bound for iframe key capture
+function onInteractKey(e) {
+  if (e.code === 'KeyE' && currentInteract && !ended && controls.isLocked){
+    const it = currentInteract;
+    if (it.once) it.used = true;
+    it.action();
+  }
+}
+window.addEventListener('keydown', onInteractKey);
+document.addEventListener('keydown', onInteractKey);
+
+/* pyramid can physics */
+anim.push((dt)=>{
+  for (const c of pyramidCans){
+    if (!c.live) continue;
+    c.vy -= 9.8*dt;
+    c.mesh.position.x += c.vx*dt;
+    c.mesh.position.y += c.vy*dt;
+    c.mesh.position.z += c.vz*dt;
+    c.mesh.rotation.x += c.wx*dt;
+    c.mesh.rotation.z += c.wz*dt;
+    if (c.mesh.position.y < .34){
+      c.mesh.position.y = .34;
+      c.vy *= -.35; c.vx *= .7; c.vz *= .7; c.wx *= .6; c.wz *= .6;
+      if (Math.abs(c.vy) < .6){ c.live = false; c.mesh.rotation.x = Math.PI/2; }
+    }
+  }
+});
+
+/* ============================================================
+   THE DESCENT
+============================================================ */
+function smoothstep(p){ return p*p*(3-2*p); }
+function startDescent(){
+  descending = true; descentP = 0; levelSwitched = false;
+  amSpeak("HOLD STILL. IF YOU FELL, I WOULD HAVE TO CATCH YOU. NEITHER OF US WANTS TO KNOW WHAT I WOULD CATCH YOU WITH.", 5200);
+  setTimeout(()=>{ if (descending) amSpeak("A HUNDRED MILES OF ME IN EVERY DIRECTION. EVERY INCH OF IT AWAKE. EVERY INCH OF IT REMEMBERING.", 5200); }, 8000);
+}
+anim.push((dt)=>{
+  if (!descending) return;
+  descentP = Math.min(1, descentP + dt/14);
+  const y = L2Y * smoothstep(descentP);
+  platform.position.y = y;
+  levelBaseY = y;
+  camera.position.x = (Math.random()-.5)*.03;
+  camera.position.z = -ZC + (Math.random()-.5)*.03;
+  camera.position.y = y + EYE + Math.sin(descentP*60)*.01;
+  if (descentP > .5 && !levelSwitched){ levelSwitched = true; setLevel(2); }
+  if (descentP >= 1){
+    descending = false; descended = true;
+    levelBaseY = L2Y;
+    amSpeak("YOU MAY STEP OFF NOW. WIPE YOUR FEET. YOU ARE STANDING ON MY SOUL.", 5200);
+  }
+});
+
+/* ============================================================
+   ENDING
+============================================================ */
+function startEnding(){
+  ended = true;
+  promptEl.style.opacity = 0;
+  subtitleEl.style.opacity = 0;
+  if (droneGain) droneFade = true;
+  const endEl = document.getElementById('ending');
+  endEl.classList.add('show');
+  const ids = ['end1','end2','end3','end4'];
+  ids.forEach((id, i) => setTimeout(() => {
+    document.getElementById(id).style.opacity = 1;
+  }, 4000 + i*5000));
+  setTimeout(() => {
+    const b = document.getElementById('againBtn');
+    b.style.opacity = 1;
+    b.onclick = () => location.reload();
+    controls.unlock();
+  }, 4000 + ids.length*5000);
+}
+
+/* ============================================================
+   PROCEDURAL AUDIO
+============================================================ */
+let droneGain = null, master = null, droneFade = false;
+let windGain = null, lavaGain = null, subOsc = null, subGain = null;
+let nextBeat = 0;
+
+function noiseBuffer(ctx, secs){
+  const buf = ctx.createBuffer(1, ctx.sampleRate*secs, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
+  return buf;
+}
+
+function startAudio(){
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  master = audioCtx.createGain(); master.gain.value = .55;
+  master.connect(audioCtx.destination);
+
+  droneGain = audioCtx.createGain(); droneGain.gain.value = 1;
+  const lp = audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 220;
+  droneGain.connect(lp); lp.connect(master);
+
+  const mk = (type, freq, g) => {
+    const o = audioCtx.createOscillator(); o.type = type; o.frequency.value = freq;
+    const og = audioCtx.createGain(); og.gain.value = g;
+    o.connect(og); og.connect(droneGain); o.start();
+    return o;
+  };
+  mk('sawtooth', 36, .055);
+  mk('sine', 54.2, .05);
+  mk('sine', 72.8, .02);
+  const wob = mk('sine', 108.5, .012);
+
+  // deeper sub layer — fades in on level 2
+  subOsc = audioCtx.createOscillator(); subOsc.type='sine'; subOsc.frequency.value = 27.5;
+  subGain = audioCtx.createGain(); subGain.gain.value = 0;
+  subOsc.connect(subGain); subGain.connect(master); subOsc.start();
+
+  const lfo = audioCtx.createOscillator(); lfo.frequency.value = .07;
+  const lfoG = audioCtx.createGain(); lfoG.gain.value = .25;
+  lfo.connect(lfoG); lfoG.connect(droneGain.gain); lfo.start();
+
+  setInterval(() => {
+    if (audioCtx.state !== 'running') return;
+    wob.frequency.linearRampToValueAtTime(104 + Math.random()*10, audioCtx.currentTime + 4);
+  }, 5000);
+
+  // looping wind (aviary) and lava rumble (furnace), gains driven per-frame
+  const nb = noiseBuffer(audioCtx, 2);
+  const windSrc = audioCtx.createBufferSource(); windSrc.buffer = nb; windSrc.loop = true;
+  const windBp = audioCtx.createBiquadFilter(); windBp.type='bandpass';
+  windBp.frequency.value = 480; windBp.Q.value = .6;
+  windGain = audioCtx.createGain(); windGain.gain.value = 0;
+  windSrc.connect(windBp); windBp.connect(windGain); windGain.connect(master); windSrc.start();
+
+  const lavaSrc = audioCtx.createBufferSource(); lavaSrc.buffer = nb; lavaSrc.loop = true;
+  const lavaLp = audioCtx.createBiquadFilter(); lavaLp.type='lowpass'; lavaLp.frequency.value = 80;
+  lavaGain = audioCtx.createGain(); lavaGain.gain.value = 0;
+  lavaSrc.connect(lavaLp); lavaLp.connect(lavaGain); lavaGain.connect(master); lavaSrc.start();
+
+  scheduleClang();
+}
+
+function scheduleClang(){
+  setTimeout(() => {
+    if (audioCtx && audioCtx.state === 'running' && !ended) clang();
+    scheduleClang();
+  }, 7000 + Math.random()*14000);
+}
+function clang(){
+  const dur = 2.2;
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate*dur, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * Math.exp(-i/(audioCtx.sampleRate*.4));
+  const src = audioCtx.createBufferSource(); src.buffer = buf;
+  const bp = audioCtx.createBiquadFilter(); bp.type='bandpass';
+  bp.frequency.value = 120 + Math.random()*500; bp.Q.value = 14;
+  const g = audioCtx.createGain(); g.gain.value = .5;
+  src.connect(bp); bp.connect(g); g.connect(master);
+  src.start();
+}
+function thump(){
+  const o = audioCtx.createOscillator(); o.type='sine'; o.frequency.value = 52;
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(.5, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + .25);
+  o.connect(g); g.connect(master);
+  o.start(); o.stop(audioCtx.currentTime + .3);
+}
+function amVoiceBurst(){
+  if (!audioCtx || audioCtx.state !== 'running') return;
+  const dur = 1.6;
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate*dur, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i=0;i<d.length;i++){
+    const t = i/audioCtx.sampleRate;
+    d[i] = Math.sin(t*82*Math.PI*2 + Math.sin(t*7)*5) * Math.exp(-t*1.4) * (Math.random()*.4+.6) * .55;
+  }
+  const src = audioCtx.createBufferSource(); src.buffer = buf;
+  const g = audioCtx.createGain(); g.gain.value = .5;
+  src.connect(g); g.connect(master);
+  src.start();
+}
+
+/* ============================================================
+   INTRO / LOCK FLOW
+============================================================ */
+const intro = document.getElementById('intro');
+const awakeLine = "I KNOW YOU ARE AWAKE. I FELT YOUR HEARTBEAT CHANGE. I FEEL EVERYTHING THAT HAPPENS INSIDE ME \u2014 AND YOU ARE INSIDE ME.";
+
+// Start the experience. Never gated on pointer lock succeeding.
+function beginGame(){
+  intro.classList.add('hidden');
+  engaged = true;
+  if (!started){
+    started = true;
+    setTimeout(() => amSpeak(awakeLine, 5200), 2200);
+  }
+}
+
+// ---- drag-to-look fallback (used whenever pointer lock isn't active) ----
+const _lookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+const _LOOK_CLAMP = Math.PI/2 - 0.04;
+function applyDragLook(dx, dy){
+  _lookEuler.setFromQuaternion(camera.quaternion);
+  _lookEuler.y -= dx * 0.0024;
+  _lookEuler.x -= dy * 0.0024;
+  _lookEuler.x = Math.max(-_LOOK_CLAMP, Math.min(_LOOK_CLAMP, _lookEuler.x));
+  camera.quaternion.setFromEuler(_lookEuler);
+}
+let dragging = false, dragMoved = false, lastPX = 0, lastPY = 0;
+function pStart(x, y){ if (engaged && !controls.isLocked && !ended){ dragging = true; dragMoved = false; lastPX = x; lastPY = y; } }
+function pMove(x, y){
+  if (!dragging || controls.isLocked) return;
+  const dx = x - lastPX, dy = y - lastPY;
+  if (Math.abs(dx) + Math.abs(dy) > 2) dragMoved = true;
+  applyDragLook(dx, dy); lastPX = x; lastPY = y;
+}
+function pEnd(){ dragging = false; }
+renderer.domElement.addEventListener('mousedown', e => pStart(e.clientX, e.clientY));
+window.addEventListener('mousemove', e => pMove(e.clientX, e.clientY));
+window.addEventListener('mouseup', pEnd);
+renderer.domElement.addEventListener('touchstart', e => { const t = e.touches[0]; if (t) pStart(t.clientX, t.clientY); }, { passive:true });
+window.addEventListener('touchmove', e => { const t = e.touches[0]; if (t) pMove(t.clientX, t.clientY); }, { passive:true });
+window.addEventListener('touchend', pEnd);
+
+let lockHintShown = false;
+function showLockHint(){
+  if (lockHintShown || controls.isLocked) return;
+  lockHintShown = true;
+  const h = document.getElementById('lockhint');
+  if (h){ h.style.opacity = 1; setTimeout(() => { h.style.opacity = 0; }, 6500); }
+}
+
+function requestLock(){
+  startAudio();
+  // Attempt pointer lock (preferred) inside the user gesture.
+  let pr = null;
+  try { pr = controls.lock(); } catch(e){ pr = null; }
+  if (pr && typeof pr.catch === 'function') pr.catch(() => showLockHint());
+  // Start regardless — the game must never depend on the lock resolving.
+  beginGame();
+  // If lock didn't take almost immediately, reveal the drag-look hint.
+  setTimeout(() => { if (!controls.isLocked) showLockHint(); }, 350);
+}
+document.getElementById('startBtn').addEventListener('click', requestLock);
+// Click the scene to (re)acquire pointer lock — but not at the end of a drag.
+renderer.domElement.addEventListener('click', () => {
+  if (!controls.isLocked && started && !ended && !dragMoved) requestLock();
+});
+controls.addEventListener('lock', () => { beginGame(); });
+controls.addEventListener('unlock', () => {
+  // Only treat this as a pause if we were genuinely locked (not the fallback path).
+  if (!ended){ engaged = false; intro.classList.remove('hidden'); }
+});
+
+// Native pointerlockchange (covers iframe / vendor-prefixed environments)
+document.addEventListener('pointerlockchange', () => {
+  const locked = document.pointerLockElement === renderer.domElement ||
+                 document.mozPointerLockElement === renderer.domElement;
+  if (locked) beginGame();
+  else if (!ended && started){ engaged = false; intro.classList.remove('hidden'); }
+});
+
+/* ============================================================
+   ATMOSPHERE (fog color blends near zones)
+============================================================ */
+const fogBase   = new THREE.Color(0x04050a);
+const fogDeep   = new THREE.Color(0x070406);
+const Z1 = [
+  { x:ZC, z:0,        c:new THREE.Color(0x190404) },  // hate
+  { x:0, z:ZC,        c:new THREE.Color(0x14100a) },  // larder
+  { x:-ZC, z:0,       c:new THREE.Color(0x070a14) },  // gallery
+  { x:0, z:-ZC,       c:new THREE.Color(0x100c04) },  // vault
+];
+const Z2 = [
+  { x:ZC, z:L2Z,      c:new THREE.Color(0x0a0c12) },  // aviary
+  { x:0, z:L2Z+ZC,    c:new THREE.Color(0x1c0802) },  // furnace
+  { x:-ZC, z:L2Z,     c:new THREE.Color(0x061014) },  // talkfields
+  { x:0, z:L2Z-ZC,    c:new THREE.Color(0x06141d) },  // ice
+];
+const fogTmp = new THREE.Color();
+function zoneWeight(cx, cz){
+  const d = Math.hypot(camera.position.x - cx, camera.position.z - cz);
+  return THREE.MathUtils.clamp(1 - d/45, 0, 1);
+}
+function updateAtmosphere(){
+  fogTmp.copy(curLevel === 1 ? fogBase : fogDeep);
+  const set = curLevel === 1 ? Z1 : Z2;
+  for (const zn of set) fogTmp.lerp(zn.c, zoneWeight(zn.x, zn.z));
+  scene.fog.color.copy(fogTmp);
+  scene.background.copy(fogTmp);
+  scene.fog.density = curLevel === 1 ? 0.020 : 0.024;
+
+  // zone-driven audio beds
+  if (windGain) windGain.gain.value = (curLevel===2 ? zoneWeight(ZC, L2Z) : 0) * .18;
+  if (lavaGain) lavaGain.gain.value = (curLevel===2 ? zoneWeight(0, L2Z+ZC) : 0) * .5;
+  if (subGain)  subGain.gain.value  = (curLevel===2 ? .05 : 0);
+}
+
+/* ============================================================
+   MAIN LOOP
+============================================================ */
+const clock = new THREE.Clock();
+const eyeTarget = new THREE.Vector3();
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), .05);
+  const t = clock.elapsedTime;
+
+  if (engaged && !ended && !descending) updateMovement(dt);
+
+  // flashlight: gentle sway while walking, dies briefly when AM speaks
+  flash.target.position.x = 0.05 + Math.cos(bobT*.5)*.05;
+  flash.target.position.y = -0.55 + Math.sin(bobT)*.04;
+  if (flashFlick > 0){
+    flashFlick -= dt;
+    flash.intensity = flashOn ? (Math.random() < .45 ? 6 : 65) : 0;
+  } else {
+    flash.intensity = flashOn ? 65 : 0;
+  }
+
+  // registered animations (gears, particles, bird, lava, descent, cans…)
+  for (const fn of anim) fn(dt, t);
+
+  // the Eye tracks you (level 1)
+  if (curLevel === 1){
+    eyeTarget.copy(camera.position);
+    eyeGroup.lookAt(eyeTarget);
+    const pulse = 1 + Math.sin(t*2.1)*.25 + Math.sin(t*7.3)*.08;
+    eyeLight.intensity = 30 * pulse;
+    irisMat.color.setHSL(0.005, 1, .45 + Math.sin(t*2.1)*.1);
+  }
+
+  // flicker
+  for (const f of flickerLights){
+    if (!f.light.visible) continue;
+    f.light.intensity = f.base * (0.82 + 0.18*Math.sin(t*f.speed*7 + f.seed)
+                                       + (Math.random()<.012 ? -.5 : 0));
+  }
+
+  // screen shake (hate pillar)
+  if (shakeT > 0){
+    shakeT -= dt;
+    camera.fov = 72 + Math.sin(t*70)*1.8*Math.max(0,shakeT);
+    camera.updateProjectionMatrix();
+    if (shakeT <= 0){ camera.fov = 72; camera.updateProjectionMatrix(); }
+  }
+
+  // triggers
+  if (started && !ended){
+    for (const tr of triggers){
+      if (tr.fired || tr.level !== curLevel) continue;
+      const d = Math.hypot(camera.position.x - tr.x, camera.position.z - tr.z);
+      if (d < tr.r){
+        tr.fired = true;
+        if (tr.tag) visitedL1.add(tr.tag);
+        if (tr.name) showZoneName(tr.name);
+        amSpeak(tr.say, tr.hold || 4200);
+      }
+    }
+    updateInteraction();
+  }
+
+  // heartbeat in the ice cavern
+  if (audioCtx && curLevel === 2 && !ended){
+    const dIce = Math.hypot(camera.position.x, camera.position.z - (L2Z - ZC));
+    if (dIce < 26 && audioCtx.currentTime > nextBeat){
+      thump(); setTimeout(()=>{ if(audioCtx) thump(); }, 180);
+      nextBeat = audioCtx.currentTime + 1.15;
+    }
+  }
+
+  // ending: world audio dies
+  if (droneGain && droneFade){
+    droneGain.gain.value = Math.max(0, droneGain.gain.value - dt*.12);
+    if (subGain) subGain.gain.value = 0;
+    if (windGain) windGain.gain.value = 0;
+    if (lavaGain) lavaGain.gain.value = 0;
+  }
+
+  updateAtmosphere();
+  if (useBloom) composer.render();
+  else renderer.render(scene, camera);
+}
+animate();
+window.__noMouthReady = true;
+</script>
+<script>
+// If the 3D engine never initialized (e.g. the three.js CDN is blocked, import
+// maps unsupported, or WebGL disabled), tell the player instead of leaving a dead button.
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (window.__noMouthReady) return;
+    const i = document.getElementById('intro');
+    if (!i) return;
+    const e = document.createElement('div');
+    e.style.cssText = 'margin-top:22px;color:#e4524a;font-size:13px;letter-spacing:.12em;max-width:540px;line-height:1.7;';
+    e.textContent = 'THE 3D ENGINE FAILED TO LOAD. THE THREE.JS LIBRARY (jsdelivr CDN) MAY BE BLOCKED ON THIS NETWORK, OR WEBGL IS DISABLED IN THIS BROWSER. TRY A DIFFERENT NETWORK OR BROWSER.';
+    i.appendChild(e);
+  }, 7000);
+});
+</script>
+</body>
+</html>
